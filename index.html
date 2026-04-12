@@ -1,0 +1,1553 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HAR Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Saira+Stencil+One&family=Saira:wght@300;400;500;600&display=swap" rel="stylesheet" />
+<style>
+  /* ─── RESET & BASE ─────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #ffffff;
+    --bg2: #f4f4f4;
+    --bg3: #ebebeb;
+    --border: #d0d0d0;
+    --border2: #b8b8b8;
+    --text: #0a0a0a;
+    --text2: #444444;
+    --text3: #888888;
+    --accent: #0a0a0a;
+    --accent-inv: #ffffff;
+    --danger: #c0392b;
+    --warn: #b07d00;
+    --ok: #1a7a3a;
+    --info: #1a4a8a;
+    --tag-danger-bg: #fdf0ef;
+    --tag-warn-bg: #fdf8e1;
+    --tag-ok-bg: #edf7f1;
+    --tag-info-bg: #edf2fc;
+    --shadow: rgba(0,0,0,0.08);
+    --shadow2: rgba(0,0,0,0.14);
+    --transition: 0.2s ease;
+  }
+
+  [data-theme="dark"] {
+    --bg: #0a0a0a;
+    --bg2: #141414;
+    --bg3: #1e1e1e;
+    --border: #2a2a2a;
+    --border2: #3a3a3a;
+    --text: #f0f0f0;
+    --text2: #aaaaaa;
+    --text3: #666666;
+    --accent: #f0f0f0;
+    --accent-inv: #0a0a0a;
+    --danger: #e05c4a;
+    --warn: #d4a017;
+    --ok: #3dbb6a;
+    --info: #5b8dd9;
+    --tag-danger-bg: #1f0f0d;
+    --tag-warn-bg: #1a1600;
+    --tag-ok-bg: #0d1f12;
+    --tag-info-bg: #0d1525;
+    --shadow: rgba(0,0,0,0.4);
+    --shadow2: rgba(0,0,0,0.6);
+  }
+
+  html { font-size: 15px; }
+  body {
+    font-family: 'Saira', sans-serif;
+    font-weight: 400;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background var(--transition), color var(--transition);
+    line-height: 1.6;
+  }
+
+  /* ─── SCROLLBAR ─────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+
+  /* ─── TYPOGRAPHY ────────────────────────────────────────────── */
+  .stencil { font-family: 'Saira Stencil One', sans-serif; letter-spacing: 0.02em; }
+  h1, h2, h3 { font-weight: 600; }
+
+  /* ─── LAYOUT ────────────────────────────────────────────────── */
+  .app { display: flex; flex-direction: column; min-height: 100vh; }
+
+  /* ─── TOPBAR ────────────────────────────────────────────────── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 2rem;
+    height: 56px;
+    border-bottom: 1px solid var(--border);
+    background: var(--bg);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .topbar-brand { display: flex; align-items: center; gap: 0.6rem; }
+  .brand-dot { width: 8px; height: 8px; background: var(--text); border-radius: 50%; }
+  .brand-name { font-family: 'Saira Stencil One', sans-serif; font-size: 1.1rem; letter-spacing: 0.06em; color: var(--text); }
+  .topbar-actions { display: flex; align-items: center; gap: 0.5rem; }
+
+  /* ─── BUTTONS ───────────────────────────────────────────────── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.4rem 0.9rem;
+    font-family: 'Saira', sans-serif;
+    font-size: 0.8rem;
+    font-weight: 500;
+    border-radius: 4px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    background: var(--bg);
+    color: var(--text2);
+    transition: all var(--transition);
+    letter-spacing: 0.02em;
+  }
+  .btn:hover { border-color: var(--text); color: var(--text); background: var(--bg2); }
+  .btn-solid {
+    background: var(--accent);
+    color: var(--accent-inv);
+    border-color: var(--accent);
+  }
+  .btn-solid:hover { opacity: 0.85; color: var(--accent-inv); }
+  .btn-icon {
+    padding: 0.4rem;
+    min-width: 32px;
+    justify-content: center;
+  }
+  .btn svg { flex-shrink: 0; }
+
+  /* ─── TABS ──────────────────────────────────────────────────── */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    background: var(--bg);
+    overflow-x: auto;
+    gap: 0;
+  }
+  .tab {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.8rem;
+    font-weight: 500;
+    color: var(--text3);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+    transition: all var(--transition);
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-family: 'Saira', sans-serif;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--text); border-bottom-color: var(--text); }
+
+  /* ─── MAIN CONTENT ──────────────────────────────────────────── */
+  .main { flex: 1; padding: 1.5rem 2rem; max-width: 1400px; width: 100%; margin: 0 auto; }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* ─── UPLOAD ZONE ───────────────────────────────────────────── */
+  .upload-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 50vh;
+  }
+  .upload-zone {
+    width: 100%;
+    max-width: 560px;
+    border: 1.5px dashed var(--border2);
+    border-radius: 8px;
+    padding: 3.5rem 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: all var(--transition);
+    background: var(--bg);
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--text); background: var(--bg2); }
+  .upload-icon { margin-bottom: 1.2rem; opacity: 0.4; }
+  .upload-title { font-family: 'Saira Stencil One', sans-serif; font-size: 1.4rem; letter-spacing: 0.04em; margin-bottom: 0.5rem; }
+  .upload-sub { font-size: 0.85rem; color: var(--text3); margin-bottom: 1.4rem; }
+  .upload-hint { font-size: 0.75rem; color: var(--text3); margin-top: 1rem; }
+  #fileInput { display: none; }
+
+  /* ─── STATS ROW ─────────────────────────────────────────────── */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 1.5rem;
+  }
+  .stat-card {
+    background: var(--bg2);
+    padding: 1rem 1.2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+  }
+  .stat-label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 500; }
+  .stat-value { font-family: 'Saira Stencil One', sans-serif; font-size: 1.5rem; letter-spacing: 0.02em; }
+  .stat-value.danger { color: var(--danger); }
+  .stat-value.warn { color: var(--warn); }
+  .stat-value.ok { color: var(--ok); }
+
+  /* ─── TOOLBAR ───────────────────────────────────────────────── */
+  .toolbar {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+  .search-box {
+    flex: 1;
+    min-width: 160px;
+    max-width: 320px;
+    display: flex;
+    align-items: center;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 0.35rem 0.7rem;
+    gap: 0.4rem;
+    background: var(--bg);
+  }
+  .search-box input {
+    flex: 1;
+    border: none;
+    outline: none;
+    background: transparent;
+    font-family: 'Saira', sans-serif;
+    font-size: 0.82rem;
+    color: var(--text);
+  }
+  .search-box input::placeholder { color: var(--text3); }
+  .filter-select {
+    padding: 0.38rem 0.7rem;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    font-family: 'Saira', sans-serif;
+    font-size: 0.8rem;
+    background: var(--bg);
+    color: var(--text);
+    cursor: pointer;
+    transition: border-color var(--transition);
+  }
+  .filter-select:focus { outline: none; border-color: var(--text); }
+
+  /* ─── TABLE ─────────────────────────────────────────────────── */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 6px; }
+  table { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+  thead th {
+    padding: 0.6rem 0.8rem;
+    text-align: left;
+    font-weight: 600;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text3);
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+  }
+  thead th:hover { color: var(--text); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background var(--transition); }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--bg2); cursor: pointer; }
+  tbody td { padding: 0.55rem 0.8rem; color: var(--text2); vertical-align: middle; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  tbody td.url-cell { max-width: 260px; font-size: 0.75rem; color: var(--text); }
+
+  /* ─── STATUS BADGES ─────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.03em;
+  }
+  .badge-2xx { background: var(--tag-ok-bg); color: var(--ok); }
+  .badge-3xx { background: var(--tag-info-bg); color: var(--info); }
+  .badge-4xx { background: var(--tag-warn-bg); color: var(--warn); }
+  .badge-5xx { background: var(--tag-danger-bg); color: var(--danger); }
+  .badge-0   { background: var(--tag-danger-bg); color: var(--danger); }
+
+  /* ─── METHOD PILLS ──────────────────────────────────────────── */
+  .method {
+    display: inline-block;
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    border: 1px solid var(--border2);
+    color: var(--text2);
+  }
+
+  /* ─── TIMING BAR ────────────────────────────────────────────── */
+  .timing-bar-wrap { display: flex; align-items: center; gap: 0.5rem; }
+  .timing-bar { height: 4px; border-radius: 2px; background: var(--text); opacity: 0.25; min-width: 4px; max-width: 100px; }
+  .timing-fast .timing-bar { opacity: 0.25; }
+  .timing-mid  .timing-bar { opacity: 0.55; }
+  .timing-slow .timing-bar { background: var(--warn); opacity: 1; }
+  .timing-vslow .timing-bar { background: var(--danger); opacity: 1; }
+
+  /* ─── SECURITY PANEL ────────────────────────────────────────── */
+  .section-title {
+    font-family: 'Saira Stencil One', sans-serif;
+    font-size: 0.95rem;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .section-title .count {
+    font-family: 'Saira', sans-serif;
+    font-size: 0.75rem;
+    font-weight: 500;
+    background: var(--bg3);
+    color: var(--text3);
+    padding: 0.1rem 0.45rem;
+    border-radius: 20px;
+  }
+
+  .issues-list { display: flex; flex-direction: column; gap: 0.6rem; margin-bottom: 2rem; }
+  .issue-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+  .issue-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.7rem 1rem;
+    cursor: pointer;
+    background: var(--bg2);
+    transition: background var(--transition);
+  }
+  .issue-header:hover { background: var(--bg3); }
+  .issue-sev {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .sev-high   { background: var(--danger); }
+  .sev-medium { background: var(--warn); }
+  .sev-low    { background: var(--info); }
+  .sev-info   { background: var(--text3); }
+  .issue-title { font-size: 0.83rem; font-weight: 500; flex: 1; }
+  .issue-meta { font-size: 0.72rem; color: var(--text3); white-space: nowrap; }
+  .issue-body { display: none; padding: 0.8rem 1rem; font-size: 0.8rem; color: var(--text2); border-top: 1px solid var(--border); line-height: 1.7; }
+  .issue-body.open { display: block; }
+  .issue-url { font-size: 0.72rem; color: var(--text3); margin-top: 0.3rem; font-family: monospace; word-break: break-all; }
+
+  /* ─── WATERFALL ─────────────────────────────────────────────── */
+  .waterfall-wrap { overflow-x: auto; }
+  .waterfall-header {
+    display: grid;
+    grid-template-columns: 40px 1fr 70px 70px 80px;
+    gap: 0;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text3);
+    font-weight: 600;
+    padding: 0.4rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .wf-row {
+    display: grid;
+    grid-template-columns: 40px 1fr 70px 70px 80px;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.75rem;
+    align-items: center;
+    min-height: 30px;
+    transition: background var(--transition);
+    cursor: pointer;
+  }
+  .wf-row:hover { background: var(--bg2); }
+  .wf-num { padding: 0.3rem 0.5rem; color: var(--text3); font-size: 0.68rem; }
+  .wf-url { padding: 0.3rem 0.5rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.73rem; }
+  .wf-size, .wf-status, .wf-timing { padding: 0.3rem 0.5rem; text-align: right; white-space: nowrap; }
+  .wf-bar-col { padding: 0.3rem 0; position: relative; min-width: 120px; display: flex; align-items: center; }
+  .wf-bar {
+    height: 10px;
+    background: var(--text);
+    opacity: 0.2;
+    border-radius: 2px;
+    position: absolute;
+    transition: opacity 0.1s;
+  }
+  .wf-row:hover .wf-bar { opacity: 0.45; }
+  .wf-bar.slow { background: var(--warn); opacity: 0.6; }
+  .wf-bar.vslow { background: var(--danger); opacity: 0.8; }
+
+  /* ─── DETAIL DRAWER ─────────────────────────────────────────── */
+  .drawer-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.4);
+    z-index: 200;
+  }
+  .drawer-overlay.open { display: block; }
+  .drawer {
+    position: fixed;
+    top: 0;
+    right: -520px;
+    width: min(520px, 100vw);
+    height: 100vh;
+    background: var(--bg);
+    border-left: 1px solid var(--border);
+    z-index: 201;
+    display: flex;
+    flex-direction: column;
+    transition: right 0.25s ease;
+    overflow: hidden;
+  }
+  .drawer.open { right: 0; }
+  .drawer-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .drawer-title { font-family: 'Saira Stencil One', sans-serif; font-size: 0.9rem; letter-spacing: 0.04em; }
+  .drawer-body { flex: 1; overflow-y: auto; padding: 1.2rem; }
+  .kv-section { margin-bottom: 1.2rem; }
+  .kv-title { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); font-weight: 600; margin-bottom: 0.5rem; }
+  .kv-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; }
+  .kv-table tr { border-bottom: 1px solid var(--border); }
+  .kv-table td:first-child { padding: 0.4rem 0.8rem 0.4rem 0; color: var(--text3); font-weight: 500; white-space: nowrap; min-width: 120px; vertical-align: top; }
+  .kv-table td:last-child { padding: 0.4rem 0; color: var(--text); word-break: break-all; font-family: monospace; font-size: 0.72rem; }
+
+  /* ─── AI CHAT PANEL ─────────────────────────────────────────── */
+  .ai-panel { display: flex; flex-direction: column; height: calc(100vh - 110px); }
+  .ai-key-bar {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    margin-bottom: 1rem;
+    background: var(--bg2);
+    flex-wrap: wrap;
+  }
+  .ai-key-bar label { font-size: 0.78rem; color: var(--text3); white-space: nowrap; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; }
+  .ai-key-bar input {
+    flex: 1;
+    min-width: 200px;
+    border: 1px solid var(--border2);
+    border-radius: 4px;
+    padding: 0.38rem 0.7rem;
+    font-family: 'Saira', sans-serif;
+    font-size: 0.8rem;
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+    transition: border-color var(--transition);
+  }
+  .ai-key-bar input:focus { border-color: var(--text); }
+  .ai-key-hint { font-size: 0.7rem; color: var(--text3); width: 100%; }
+
+  .chat-history {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.8rem;
+    padding: 0.2rem 0;
+    margin-bottom: 0.8rem;
+  }
+  .chat-empty {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    color: var(--text3);
+    font-size: 0.85rem;
+    opacity: 0.7;
+  }
+  .chat-empty .stencil { font-size: 1.1rem; opacity: 0.5; }
+
+  .msg { display: flex; gap: 0.7rem; }
+  .msg-avatar {
+    width: 26px;
+    height: 26px;
+    border-radius: 4px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.6rem;
+    font-weight: 700;
+    flex-shrink: 0;
+    letter-spacing: 0.04em;
+    color: var(--text3);
+    font-family: 'Saira Stencil One', sans-serif;
+  }
+  .msg-avatar.ai { background: var(--accent); color: var(--accent-inv); border-color: var(--accent); }
+  .msg-content { flex: 1; font-size: 0.82rem; line-height: 1.65; color: var(--text2); padding-top: 0.2rem; }
+  .msg-content.user { color: var(--text); }
+  .msg-content p { margin-bottom: 0.4rem; }
+  .msg-content p:last-child { margin-bottom: 0; }
+  .msg-content code { font-family: monospace; font-size: 0.75rem; background: var(--bg3); padding: 0.1rem 0.3rem; border-radius: 2px; }
+  .msg-content pre { background: var(--bg3); border: 1px solid var(--border); border-radius: 4px; padding: 0.7rem; overflow-x: auto; margin: 0.4rem 0; }
+  .msg-content pre code { background: none; padding: 0; font-size: 0.73rem; }
+
+  .chat-input-row {
+    display: flex;
+    gap: 0.5rem;
+    align-items: flex-end;
+  }
+  .chat-input-wrap {
+    flex: 1;
+    border: 1px solid var(--border2);
+    border-radius: 6px;
+    background: var(--bg);
+    transition: border-color var(--transition);
+  }
+  .chat-input-wrap:focus-within { border-color: var(--text); }
+  .chat-input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: none;
+    background: transparent;
+    font-family: 'Saira', sans-serif;
+    font-size: 0.82rem;
+    color: var(--text);
+    outline: none;
+    resize: none;
+    min-height: 44px;
+    max-height: 120px;
+  }
+  .chat-input::placeholder { color: var(--text3); }
+
+  .typing-indicator { display: flex; gap: 3px; padding: 0.2rem 0; }
+  .typing-indicator span {
+    width: 5px; height: 5px; border-radius: 50%;
+    background: var(--text3);
+    animation: blink 1s infinite;
+  }
+  .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes blink { 0%,80%,100%{opacity:0.2} 40%{opacity:1} }
+
+  /* ─── QUICK PROMPTS ─────────────────────────────────────────── */
+  .quick-prompts { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 0.7rem; }
+  .qp {
+    font-size: 0.72rem;
+    padding: 0.25rem 0.6rem;
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    cursor: pointer;
+    color: var(--text3);
+    transition: all var(--transition);
+    background: var(--bg);
+  }
+  .qp:hover { border-color: var(--text); color: var(--text); }
+
+  /* ─── SUMMARY PANEL ─────────────────────────────────────────── */
+  .summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  @media (max-width: 600px) { .summary-grid { grid-template-columns: 1fr; } }
+  .summary-card {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem 1.2rem;
+    background: var(--bg2);
+  }
+  .summary-card h3 { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 0.8rem; font-weight: 600; }
+  .domain-row { display: flex; justify-content: space-between; padding: 0.25rem 0; border-bottom: 1px solid var(--border); font-size: 0.78rem; }
+  .domain-row:last-child { border-bottom: none; }
+  .domain-name { color: var(--text2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 180px; }
+  .domain-count { color: var(--text3); font-size: 0.72rem; }
+  .type-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.25rem 0; }
+  .type-bar-outer { flex: 1; height: 4px; background: var(--bg3); border-radius: 2px; overflow: hidden; }
+  .type-bar-inner { height: 100%; background: var(--text); border-radius: 2px; opacity: 0.4; }
+  .type-label { font-size: 0.75rem; color: var(--text2); min-width: 70px; }
+  .type-pct { font-size: 0.72rem; color: var(--text3); min-width: 35px; text-align: right; }
+
+  /* ─── TOAST ─────────────────────────────────────────────────── */
+  .toast-wrap { position: fixed; bottom: 1.5rem; left: 50%; transform: translateX(-50%); z-index: 500; display: flex; flex-direction: column; gap: 0.5rem; pointer-events: none; }
+  .toast {
+    background: var(--text);
+    color: var(--accent-inv);
+    font-size: 0.8rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 5px;
+    box-shadow: 0 4px 16px var(--shadow2);
+    opacity: 0;
+    transform: translateY(8px);
+    transition: all 0.25s ease;
+    pointer-events: auto;
+  }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* ─── NO DATA ────────────────────────────────────────────────── */
+  .no-data { text-align: center; padding: 3rem; color: var(--text3); font-size: 0.85rem; }
+
+  /* ─── RESPONSIVE ────────────────────────────────────────────── */
+  @media (max-width: 700px) {
+    .main { padding: 1rem; }
+    .topbar { padding: 0 1rem; }
+    .tabs { padding: 0 1rem; }
+    .summary-grid { grid-template-columns: 1fr; }
+    .waterfall-header, .wf-row { grid-template-columns: 30px 1fr 60px 60px; }
+    .wf-bar-col { display: none; }
+  }
+
+  /* ─── THEME TOGGLE ──────────────────────────────────────────── */
+  .theme-icon { transition: opacity 0.2s; }
+  [data-theme="dark"] .icon-sun  { display: block; }
+  [data-theme="dark"] .icon-moon { display: none; }
+  [data-theme="light"] .icon-sun  { display: none; }
+  [data-theme="light"] .icon-moon { display: block; }
+
+  /* ─── MISC ──────────────────────────────────────────────────── */
+  .monospace { font-family: monospace; font-size: 0.73rem; }
+  .truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .flex-center { display: flex; align-items: center; justify-content: center; }
+  hr.divider { border: none; border-top: 1px solid var(--border); margin: 1.2rem 0; }
+  .tag-list { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-top: 0.3rem; }
+  .tag {
+    font-size: 0.68rem;
+    padding: 0.12rem 0.45rem;
+    border-radius: 3px;
+    border: 1px solid var(--border);
+    color: var(--text3);
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- TOPBAR -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <div class="brand-dot"></div>
+      <span class="brand-name">HAR ANALYZER</span>
+    </div>
+    <div class="topbar-actions">
+      <button class="btn" id="loadNewBtn" style="display:none">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Load New
+      </button>
+      <button class="btn btn-icon" id="themeBtn" title="Toggle theme">
+        <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <!-- TABS (hidden until file loaded) -->
+  <nav class="tabs" id="tabsBar" style="display:none">
+    <div class="tab active" data-panel="requests">Requests</div>
+    <div class="tab" data-panel="security">Security</div>
+    <div class="tab" data-panel="waterfall">Waterfall</div>
+    <div class="tab" data-panel="summary">Summary</div>
+    <div class="tab" data-panel="ai">Ask AI</div>
+  </nav>
+
+  <main class="main">
+    <!-- UPLOAD PANEL -->
+    <div id="uploadPanel" class="upload-section">
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="12" y2="12"/><line x1="15" y1="15" x2="12" y2="12"/></svg>
+        </div>
+        <div class="upload-title">Drop your HAR file</div>
+        <div class="upload-sub">Drag & drop or click to browse</div>
+        <button class="btn btn-solid" onclick="document.getElementById('fileInput').click()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Choose File
+        </button>
+        <div class="upload-hint">Supports .har files · All analysis done locally in your browser</div>
+      </div>
+      <input type="file" id="fileInput" accept=".har,application/json" />
+    </div>
+
+    <!-- REQUESTS PANEL -->
+    <div id="requestsPanel" class="panel">
+      <div class="stats-grid" id="statsGrid"></div>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" id="searchInput" placeholder="Filter by URL, domain, method…" />
+        </div>
+        <select class="filter-select" id="methodFilter">
+          <option value="">All Methods</option>
+          <option value="GET">GET</option>
+          <option value="POST">POST</option>
+          <option value="PUT">PUT</option>
+          <option value="DELETE">DELETE</option>
+          <option value="OPTIONS">OPTIONS</option>
+          <option value="PATCH">PATCH</option>
+        </select>
+        <select class="filter-select" id="statusFilter">
+          <option value="">All Status</option>
+          <option value="2">2xx OK</option>
+          <option value="3">3xx Redirect</option>
+          <option value="4">4xx Error</option>
+          <option value="5">5xx Error</option>
+          <option value="0">Failed</option>
+        </select>
+        <select class="filter-select" id="typeFilter">
+          <option value="">All Types</option>
+          <option value="document">Document</option>
+          <option value="script">Script</option>
+          <option value="stylesheet">CSS</option>
+          <option value="image">Image</option>
+          <option value="font">Font</option>
+          <option value="fetch">Fetch/XHR</option>
+          <option value="other">Other</option>
+        </select>
+        <span id="rowCount" style="font-size:0.75rem;color:var(--text3);margin-left:auto;"></span>
+      </div>
+      <div class="table-wrap">
+        <table id="reqTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th data-sort="url">URL</th>
+              <th data-sort="method">Method</th>
+              <th data-sort="status">Status</th>
+              <th data-sort="type">Type</th>
+              <th data-sort="size">Size</th>
+              <th data-sort="time">Time</th>
+            </tr>
+          </thead>
+          <tbody id="reqBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- SECURITY PANEL -->
+    <div id="securityPanel" class="panel">
+      <div id="securityContent"></div>
+    </div>
+
+    <!-- WATERFALL PANEL -->
+    <div id="waterfallPanel" class="panel">
+      <div class="waterfall-wrap">
+        <div class="waterfall-header">
+          <div>#</div><div>URL</div><div style="text-align:right">Status</div><div style="text-align:right">Size</div><div style="text-align:right">Time</div>
+        </div>
+        <div id="waterfallRows"></div>
+      </div>
+    </div>
+
+    <!-- SUMMARY PANEL -->
+    <div id="summaryPanel" class="panel">
+      <div id="summaryContent"></div>
+    </div>
+
+    <!-- AI PANEL -->
+    <div id="aiPanel" class="panel">
+      <div class="ai-panel">
+        <div class="ai-key-bar">
+          <label>API KEY</label>
+          <input type="password" id="apiKeyInput" placeholder="sk-ant-…  (stored locally in your browser)" />
+          <button class="btn btn-solid" id="saveKeyBtn">Save</button>
+          <div class="ai-key-hint">
+            Your key is saved in <strong>localStorage</strong> — it persists across sessions and browser restarts on this device. It never leaves your browser.
+          </div>
+        </div>
+        <div class="quick-prompts" id="quickPrompts">
+          <div class="qp" data-q="Summarize this HAR file in a few sentences.">Summarize the HAR</div>
+          <div class="qp" data-q="What are the top security issues found in this traffic?">Top security issues</div>
+          <div class="qp" data-q="Which requests are the slowest and why might they be slow?">Slowest requests</div>
+          <div class="qp" data-q="List all third-party domains contacted and their purpose.">Third-party domains</div>
+          <div class="qp" data-q="Are there any credentials or tokens exposed in URLs or headers?">Exposed credentials</div>
+          <div class="qp" data-q="Which requests are failing and what might be causing it?">Failing requests</div>
+        </div>
+        <div class="chat-history" id="chatHistory">
+          <div class="chat-empty" id="chatEmpty">
+            <span class="stencil">ASK AI</span>
+            <span>Load a HAR file, set your API key, then ask anything about the traffic.</span>
+          </div>
+        </div>
+        <div class="chat-input-row">
+          <div class="chat-input-wrap">
+            <textarea class="chat-input" id="chatInput" placeholder="Ask about this HAR…" rows="1"></textarea>
+          </div>
+          <button class="btn btn-solid" id="sendBtn">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- DETAIL DRAWER -->
+<div class="drawer-overlay" id="drawerOverlay"></div>
+<div class="drawer" id="drawer">
+  <div class="drawer-head">
+    <span class="drawer-title">REQUEST DETAIL</span>
+    <button class="btn btn-icon" id="drawerClose">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<!-- TOAST -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<script>
+// ─── STATE ──────────────────────────────────────────────────────────────────
+let harData = null;
+let entries = [];
+let filteredEntries = [];
+let sortState = { col: null, dir: 1 };
+let chatHistory = [];
+
+// ─── THEME ──────────────────────────────────────────────────────────────────
+function initTheme() {
+  const saved = localStorage.getItem('har-theme');
+  const pref = saved || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  document.documentElement.setAttribute('data-theme', pref);
+}
+document.getElementById('themeBtn').addEventListener('click', () => {
+  const curr = document.documentElement.getAttribute('data-theme');
+  const next = curr === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('har-theme', next);
+});
+initTheme();
+
+// ─── TOAST ──────────────────────────────────────────────────────────────────
+function toast(msg, duration = 2500) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.getElementById('toastWrap').appendChild(el);
+  requestAnimationFrame(() => { el.classList.add('show'); });
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, duration);
+}
+
+// ─── API KEY ─────────────────────────────────────────────────────────────────
+// localStorage persists across sessions (survives browser restarts on same device)
+function loadApiKey() {
+  const key = localStorage.getItem('har-anthropic-key') || '';
+  document.getElementById('apiKeyInput').value = key;
+}
+document.getElementById('saveKeyBtn').addEventListener('click', () => {
+  const key = document.getElementById('apiKeyInput').value.trim();
+  if (!key) { toast('Enter an API key first'); return; }
+  localStorage.setItem('har-anthropic-key', key);
+  toast('API key saved locally ✓');
+});
+loadApiKey();
+
+// ─── FILE UPLOAD ─────────────────────────────────────────────────────────────
+const uploadZone = document.getElementById('uploadZone');
+const fileInput  = document.getElementById('fileInput');
+
+uploadZone.addEventListener('dragover', e => { e.preventDefault(); uploadZone.classList.add('drag'); });
+uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag'));
+uploadZone.addEventListener('drop', e => {
+  e.preventDefault(); uploadZone.classList.remove('drag');
+  const file = e.dataTransfer.files[0];
+  if (file) readHAR(file);
+});
+fileInput.addEventListener('change', () => { if (fileInput.files[0]) readHAR(fileInput.files[0]); });
+
+function readHAR(file) {
+  if (!file.name.endsWith('.har') && file.type !== 'application/json') {
+    toast('Please select a .har file'); return;
+  }
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      harData = JSON.parse(e.target.result);
+      entries = harData.log.entries || [];
+      if (!entries.length) { toast('No entries found in HAR file'); return; }
+      initApp();
+    } catch(err) { toast('Invalid HAR file — could not parse JSON'); }
+  };
+  reader.readAsText(file);
+}
+
+function initApp() {
+  document.getElementById('uploadPanel').style.display = 'none';
+  document.getElementById('tabsBar').style.display = 'flex';
+  document.getElementById('loadNewBtn').style.display = 'flex';
+  filteredEntries = [...entries];
+  renderRequests();
+  renderSecurity();
+  renderWaterfall();
+  renderSummary();
+  showPanel('requests');
+}
+
+// ─── TABS ─────────────────────────────────────────────────────────────────────
+document.querySelectorAll('.tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    showPanel(tab.dataset.panel);
+  });
+});
+function showPanel(name) {
+  ['requests','security','waterfall','summary','ai'].forEach(p => {
+    document.getElementById(p + 'Panel').classList.remove('active');
+  });
+  document.getElementById(name + 'Panel').classList.add('active');
+}
+
+document.getElementById('loadNewBtn').addEventListener('click', () => {
+  document.getElementById('uploadPanel').style.display = 'flex';
+  document.getElementById('tabsBar').style.display = 'none';
+  document.getElementById('loadNewBtn').style.display = 'none';
+  ['requests','security','waterfall','summary','ai'].forEach(p => {
+    document.getElementById(p + 'Panel').classList.remove('active');
+  });
+  harData = null; entries = []; filteredEntries = [];
+  chatHistory = [];
+  document.getElementById('chatHistory').innerHTML = '<div class="chat-empty" id="chatEmpty"><span class="stencil">ASK AI</span><span>Load a HAR file, set your API key, then ask anything about the traffic.</span></div>';
+  fileInput.value = '';
+});
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function fmtSize(bytes) {
+  if (!bytes || bytes < 0) return '—';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+function fmtTime(ms) {
+  if (!ms || ms < 0) return '—';
+  if (ms < 1000) return Math.round(ms) + ' ms';
+  return (ms/1000).toFixed(2) + ' s';
+}
+function getResponseSize(entry) {
+  const body = entry.response?.content?.size;
+  const header = entry.response?.headersSize;
+  const total = (body > 0 ? body : 0) + (header > 0 ? header : 0);
+  return total > 0 ? total : (entry.response?._transferSize || 0);
+}
+function getTime(entry) { return entry.time || 0; }
+function getStatusClass(status) {
+  if (!status || status === 0) return 'badge-0';
+  if (status < 300) return 'badge-2xx';
+  if (status < 400) return 'badge-3xx';
+  if (status < 500) return 'badge-4xx';
+  return 'badge-5xx';
+}
+function getContentType(entry) {
+  const ct = entry.response?.content?.mimeType || '';
+  if (ct.includes('html')) return 'document';
+  if (ct.includes('javascript') || ct.includes('ecmascript')) return 'script';
+  if (ct.includes('css')) return 'stylesheet';
+  if (ct.includes('image')) return 'image';
+  if (ct.includes('font')) return 'font';
+  if (ct.includes('json') || ct.includes('xml')) return 'fetch';
+  if (ct.includes('video') || ct.includes('audio')) return 'media';
+  return 'other';
+}
+function getDomain(url) {
+  try { return new URL(url).hostname; } catch { return url; }
+}
+function getPath(url) {
+  try { const u = new URL(url); return u.pathname + u.search; } catch { return url; }
+}
+
+// ─── REQUESTS TABLE ───────────────────────────────────────────────────────────
+const searchInput  = document.getElementById('searchInput');
+const methodFilter = document.getElementById('methodFilter');
+const statusFilter = document.getElementById('statusFilter');
+const typeFilter   = document.getElementById('typeFilter');
+
+[searchInput, methodFilter, statusFilter, typeFilter].forEach(el => {
+  el.addEventListener('input', applyFilters);
+});
+
+function applyFilters() {
+  const q = searchInput.value.toLowerCase();
+  const m = methodFilter.value;
+  const s = statusFilter.value;
+  const t = typeFilter.value;
+  filteredEntries = entries.filter(e => {
+    const url = (e.request?.url || '').toLowerCase();
+    const method = e.request?.method || '';
+    const status = e.response?.status || 0;
+    const type = getContentType(e);
+    if (q && !url.includes(q)) return false;
+    if (m && method !== m) return false;
+    if (s) {
+      if (s === '0' && status !== 0) return false;
+      if (s !== '0' && Math.floor(status/100).toString() !== s) return false;
+    }
+    if (t && type !== t) return false;
+    return true;
+  });
+  applySort();
+  renderTable();
+}
+
+function applySort() {
+  if (!sortState.col) return;
+  filteredEntries.sort((a, b) => {
+    let va, vb;
+    switch(sortState.col) {
+      case 'url': va = a.request?.url || ''; vb = b.request?.url || ''; break;
+      case 'method': va = a.request?.method || ''; vb = b.request?.method || ''; break;
+      case 'status': va = a.response?.status || 0; vb = b.response?.status || 0; break;
+      case 'type': va = getContentType(a); vb = getContentType(b); break;
+      case 'size': va = getResponseSize(a); vb = getResponseSize(b); break;
+      case 'time': va = getTime(a); vb = getTime(b); break;
+    }
+    if (va < vb) return -sortState.dir;
+    if (va > vb) return sortState.dir;
+    return 0;
+  });
+}
+
+document.querySelectorAll('thead th[data-sort]').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (sortState.col === col) sortState.dir *= -1;
+    else { sortState.col = col; sortState.dir = 1; }
+    applySort();
+    renderTable();
+  });
+});
+
+function renderRequests() {
+  renderStats();
+  applyFilters();
+}
+
+function renderStats() {
+  const total = entries.length;
+  const failed = entries.filter(e => !e.response?.status || e.response.status >= 400).length;
+  const totalSize = entries.reduce((s, e) => s + (getResponseSize(e) || 0), 0);
+  const avgTime = entries.reduce((s, e) => s + getTime(e), 0) / total;
+  const secIssues = countSecurityIssues();
+  document.getElementById('statsGrid').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total Requests</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Failed / Errors</div><div class="stat-value ${failed>0?'danger':''}">${failed}</div></div>
+    <div class="stat-card"><div class="stat-label">Total Transferred</div><div class="stat-value">${fmtSize(totalSize)}</div></div>
+    <div class="stat-card"><div class="stat-label">Avg Response Time</div><div class="stat-value ${avgTime>2000?'warn':''}">${fmtTime(avgTime)}</div></div>
+    <div class="stat-card"><div class="stat-label">Security Issues</div><div class="stat-value ${secIssues>0?'danger':''}">${secIssues}</div></div>
+    <div class="stat-card"><div class="stat-label">Unique Domains</div><div class="stat-value">${new Set(entries.map(e=>getDomain(e.request?.url||''))).size}</div></div>
+  `;
+}
+
+function renderTable() {
+  const tbody = document.getElementById('reqBody');
+  document.getElementById('rowCount').textContent = `${filteredEntries.length} / ${entries.length}`;
+  if (!filteredEntries.length) {
+    tbody.innerHTML = '<tr><td colspan="7" class="no-data">No requests match your filters</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filteredEntries.map((e, i) => {
+    const url = e.request?.url || '';
+    const method = e.request?.method || '';
+    const status = e.response?.status || 0;
+    const size = getResponseSize(e);
+    const time = getTime(e);
+    const type = getContentType(e);
+    const timeCls = time > 3000 ? 'timing-vslow' : time > 1000 ? 'timing-slow' : time > 300 ? 'timing-mid' : 'timing-fast';
+    const barW = Math.min(80, Math.max(4, time / 50));
+    return `<tr onclick="openDrawer(${entries.indexOf(e)})">
+      <td style="color:var(--text3);font-size:0.7rem">${i+1}</td>
+      <td class="url-cell truncate" title="${url}">${getDomain(url)}<span style="color:var(--text3)">${getPath(url).substring(0,60)}</span></td>
+      <td><span class="method">${method}</span></td>
+      <td><span class="badge ${getStatusClass(status)}">${status||'ERR'}</span></td>
+      <td style="color:var(--text3);font-size:0.72rem">${type}</td>
+      <td style="font-size:0.75rem">${fmtSize(size)}</td>
+      <td>
+        <div class="timing-bar-wrap ${timeCls}">
+          <span style="font-size:0.73rem;min-width:55px">${fmtTime(time)}</span>
+          <div class="timing-bar" style="width:${barW}px"></div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── SECURITY ANALYSIS ────────────────────────────────────────────────────────
+function countSecurityIssues() { return getSecurityIssues().length; }
+
+function getSecurityIssues() {
+  const issues = [];
+  entries.forEach((e, idx) => {
+    const url = e.request?.url || '';
+    const reqHeaders = e.request?.headers || [];
+    const resHeaders = e.response?.headers || [];
+    const status = e.response?.status || 0;
+    const getHeader = (headers, name) => headers.find(h => h.name.toLowerCase() === name.toLowerCase());
+
+    // 1. HTTP (non-HTTPS) requests
+    if (url.startsWith('http://') && !url.startsWith('http://localhost') && !url.startsWith('http://127.')) {
+      issues.push({ sev: 'high', title: 'Insecure HTTP Request', url, idx,
+        desc: 'This request uses plain HTTP instead of HTTPS. Data is transmitted without encryption and is vulnerable to man-in-the-middle attacks.' });
+    }
+
+    // 2. Credentials or tokens in URL
+    const sensitiveParams = ['password','passwd','pwd','token','api_key','apikey','secret','access_token','auth','session','credential'];
+    try {
+      const u = new URL(url);
+      u.searchParams.forEach((val, key) => {
+        if (sensitiveParams.some(s => key.toLowerCase().includes(s))) {
+          issues.push({ sev: 'high', title: 'Sensitive Data in URL', url, idx,
+            desc: `Query parameter "${key}" may contain sensitive data. URL parameters are logged in server logs, browser history, and can be exposed via Referer headers.` });
+        }
+      });
+    } catch {}
+
+    // 3. Missing security headers (only on HTML document responses)
+    const ct = e.response?.content?.mimeType || '';
+    if (ct.includes('html') && status >= 200 && status < 300) {
+      const secHeaders = [
+        { name: 'content-security-policy', label: 'Content-Security-Policy', sev: 'medium' },
+        { name: 'x-frame-options', label: 'X-Frame-Options', sev: 'medium' },
+        { name: 'x-content-type-options', label: 'X-Content-Type-Options', sev: 'low' },
+        { name: 'strict-transport-security', label: 'Strict-Transport-Security (HSTS)', sev: 'medium' },
+        { name: 'referrer-policy', label: 'Referrer-Policy', sev: 'low' },
+        { name: 'permissions-policy', label: 'Permissions-Policy', sev: 'info' },
+      ];
+      secHeaders.forEach(sh => {
+        if (!getHeader(resHeaders, sh.name)) {
+          issues.push({ sev: sh.sev, title: `Missing Header: ${sh.label}`, url, idx,
+            desc: `The response is missing the ${sh.label} security header. This header helps protect against common web attacks.` });
+        }
+      });
+    }
+
+    // 4. Cookies without security flags
+    const setCookies = resHeaders.filter(h => h.name.toLowerCase() === 'set-cookie');
+    setCookies.forEach(c => {
+      const val = c.value || '';
+      const name = val.split('=')[0];
+      if (!val.toLowerCase().includes('httponly')) {
+        issues.push({ sev: 'medium', title: `Cookie Missing HttpOnly: ${name}`, url, idx,
+          desc: `The cookie "${name}" does not have the HttpOnly flag. This allows JavaScript to access the cookie, enabling theft via XSS attacks.` });
+      }
+      if (!val.toLowerCase().includes('secure')) {
+        issues.push({ sev: 'medium', title: `Cookie Missing Secure Flag: ${name}`, url, idx,
+          desc: `The cookie "${name}" does not have the Secure flag. This means the cookie can be sent over unencrypted HTTP connections.` });
+      }
+      if (!val.toLowerCase().includes('samesite')) {
+        issues.push({ sev: 'low', title: `Cookie Missing SameSite: ${name}`, url, idx,
+          desc: `The cookie "${name}" does not specify a SameSite attribute, which may make it vulnerable to Cross-Site Request Forgery (CSRF) attacks.` });
+      }
+    });
+
+    // 5. Authorization header over HTTP
+    if (url.startsWith('http://') && getHeader(reqHeaders, 'authorization')) {
+      issues.push({ sev: 'high', title: 'Authorization Over HTTP', url, idx,
+        desc: 'An Authorization header is being sent over an unencrypted HTTP connection. Credentials can be intercepted by anyone on the network.' });
+    }
+
+    // 6. CORS wildcard
+    const corsHeader = getHeader(resHeaders, 'access-control-allow-origin');
+    if (corsHeader && corsHeader.value === '*') {
+      issues.push({ sev: 'low', title: 'CORS Wildcard Origin', url, idx,
+        desc: 'The response allows any origin via Access-Control-Allow-Origin: *. This may expose API data to unauthorized third-party websites.' });
+    }
+
+    // 7. Mixed content (HTTPS page requesting HTTP resource)
+    const referer = getHeader(reqHeaders, 'referer');
+    if (referer && referer.value.startsWith('https://') && url.startsWith('http://')) {
+      issues.push({ sev: 'medium', title: 'Mixed Content', url, idx,
+        desc: 'An HTTPS page is loading a resource over HTTP. Browsers may block this and it weakens the security of the HTTPS page.' });
+    }
+  });
+  return issues;
+}
+
+function renderSecurity() {
+  const issues = getSecurityIssues();
+  const sevOrder = { high: 0, medium: 1, low: 2, info: 3 };
+  issues.sort((a, b) => (sevOrder[a.sev]||3) - (sevOrder[b.sev]||3));
+
+  const grouped = { high: [], medium: [], low: [], info: [] };
+  issues.forEach(i => { (grouped[i.sev] || grouped.info).push(i); });
+
+  const sevLabel = { high: 'High', medium: 'Medium', low: 'Low', info: 'Info' };
+
+  let html = '';
+  if (!issues.length) {
+    html = '<div class="no-data" style="padding:4rem">✓ No security issues detected in this HAR file.</div>';
+  } else {
+    ['high','medium','low','info'].forEach(sev => {
+      const list = grouped[sev];
+      if (!list.length) return;
+      html += `<div class="section-title"><span class="issue-sev sev-${sev}"></span>${sevLabel[sev]} Severity <span class="count">${list.length}</span></div>`;
+      html += `<div class="issues-list">`;
+      list.forEach((issue, i) => {
+        html += `
+          <div class="issue-card">
+            <div class="issue-header" onclick="toggleIssue(this)">
+              <div class="issue-sev sev-${issue.sev}"></div>
+              <div class="issue-title">${issue.title}</div>
+              <div class="issue-meta">#${issue.idx+1}</div>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+            </div>
+            <div class="issue-body">
+              ${issue.desc}
+              <div class="issue-url">${issue.url}</div>
+            </div>
+          </div>`;
+      });
+      html += '</div>';
+    });
+  }
+  document.getElementById('securityContent').innerHTML = html;
+}
+
+function toggleIssue(header) {
+  const body = header.nextElementSibling;
+  body.classList.toggle('open');
+}
+
+// ─── WATERFALL ────────────────────────────────────────────────────────────────
+function renderWaterfall() {
+  const maxTime = Math.max(...entries.map(e => getTime(e)), 1);
+  const html = entries.map((e, i) => {
+    const url = e.request?.url || '';
+    const status = e.response?.status || 0;
+    const size = getResponseSize(e);
+    const time = getTime(e);
+    const barW = Math.max(2, (time / maxTime) * 160);
+    const barCls = time > 3000 ? 'vslow' : time > 1000 ? 'slow' : '';
+    return `<div class="wf-row" onclick="openDrawer(${i})">
+      <div class="wf-num">${i+1}</div>
+      <div class="wf-url truncate" title="${url}">${getDomain(url)}${getPath(url).substring(0,50)}</div>
+      <div class="wf-status"><span class="badge ${getStatusClass(status)}" style="font-size:0.65rem">${status||'ERR'}</span></div>
+      <div class="wf-size" style="font-size:0.73rem;color:var(--text3)">${fmtSize(size)}</div>
+      <div class="wf-timing" style="font-size:0.73rem">${fmtTime(time)}</div>
+      <div class="wf-bar-col"><div class="wf-bar ${barCls}" style="width:${barW}px"></div></div>
+    </div>`;
+  }).join('');
+  document.getElementById('waterfallRows').innerHTML = html || '<div class="no-data">No data</div>';
+}
+
+// ─── SUMMARY ──────────────────────────────────────────────────────────────────
+function renderSummary() {
+  // Domain breakdown
+  const domainMap = {};
+  entries.forEach(e => {
+    const d = getDomain(e.request?.url || '');
+    domainMap[d] = (domainMap[d] || 0) + 1;
+  });
+  const topDomains = Object.entries(domainMap).sort((a,b) => b[1]-a[1]).slice(0, 10);
+
+  // Content type breakdown
+  const typeMap = {};
+  entries.forEach(e => { const t = getContentType(e); typeMap[t] = (typeMap[t]||0)+1; });
+  const totalType = entries.length;
+  const typeRows = Object.entries(typeMap).sort((a,b)=>b[1]-a[1]).map(([t, n]) =>
+    `<div class="type-row">
+      <div class="type-label">${t}</div>
+      <div class="type-bar-outer"><div class="type-bar-inner" style="width:${(n/totalType*100).toFixed(0)}%"></div></div>
+      <div class="type-pct">${(n/totalType*100).toFixed(0)}%</div>
+    </div>`).join('');
+
+  // Status breakdown
+  const s2 = entries.filter(e=>e.response?.status>=200&&e.response?.status<300).length;
+  const s3 = entries.filter(e=>e.response?.status>=300&&e.response?.status<400).length;
+  const s4 = entries.filter(e=>e.response?.status>=400&&e.response?.status<500).length;
+  const s5 = entries.filter(e=>e.response?.status>=500).length;
+  const s0 = entries.filter(e=>!e.response?.status).length;
+
+  // Perf stats
+  const times = entries.map(e=>getTime(e)).filter(t=>t>0).sort((a,b)=>a-b);
+  const p50 = times[Math.floor(times.length*0.5)] || 0;
+  const p90 = times[Math.floor(times.length*0.9)] || 0;
+  const p99 = times[Math.floor(times.length*0.99)] || 0;
+
+  document.getElementById('summaryContent').innerHTML = `
+    <div class="summary-grid">
+      <div class="summary-card">
+        <h3>Top Domains</h3>
+        ${topDomains.map(([d,n])=>`<div class="domain-row"><div class="domain-name">${d}</div><div class="domain-count">${n} req</div></div>`).join('')}
+      </div>
+      <div class="summary-card">
+        <h3>Content Types</h3>
+        ${typeRows}
+      </div>
+      <div class="summary-card">
+        <h3>Status Codes</h3>
+        <div class="domain-row"><div class="domain-name" style="color:var(--ok)">2xx Success</div><div class="domain-count">${s2}</div></div>
+        <div class="domain-row"><div class="domain-name" style="color:var(--info)">3xx Redirect</div><div class="domain-count">${s3}</div></div>
+        <div class="domain-row"><div class="domain-name" style="color:var(--warn)">4xx Client Error</div><div class="domain-count">${s4}</div></div>
+        <div class="domain-row"><div class="domain-name" style="color:var(--danger)">5xx Server Error</div><div class="domain-count">${s5}</div></div>
+        <div class="domain-row"><div class="domain-name" style="color:var(--text3)">Failed / No Status</div><div class="domain-count">${s0}</div></div>
+      </div>
+      <div class="summary-card">
+        <h3>Response Time Percentiles</h3>
+        <div class="domain-row"><div class="domain-name">p50 (Median)</div><div class="domain-count">${fmtTime(p50)}</div></div>
+        <div class="domain-row"><div class="domain-name">p90</div><div class="domain-count ${p90>2000?'':''}"><span style="color:${p90>2000?'var(--warn)':'inherit'}">${fmtTime(p90)}</span></div></div>
+        <div class="domain-row"><div class="domain-name">p99</div><div class="domain-count"><span style="color:${p99>3000?'var(--danger)':'inherit'}">${fmtTime(p99)}</span></div></div>
+        <div class="domain-row"><div class="domain-name">Slowest</div><div class="domain-count"><span style="color:${times[times.length-1]>3000?'var(--danger)':'inherit'}">${fmtTime(times[times.length-1])}</span></div></div>
+      </div>
+    </div>
+  `;
+}
+
+// ─── DETAIL DRAWER ────────────────────────────────────────────────────────────
+function openDrawer(idx) {
+  const e = entries[idx];
+  if (!e) return;
+  const req = e.request || {};
+  const res = e.response || {};
+  const timing = e.timings || {};
+
+  const renderHeaders = (headers) => {
+    if (!headers || !headers.length) return '<tr><td colspan="2" style="color:var(--text3);font-size:0.75rem">None</td></tr>';
+    return headers.map(h => `<tr><td>${h.name}</td><td>${h.value}</td></tr>`).join('');
+  };
+  const renderKV = (obj) => {
+    const rows = Object.entries(obj).filter(([,v])=>v!==undefined&&v>=0);
+    if (!rows.length) return '<div style="color:var(--text3);font-size:0.75rem">—</div>';
+    return `<table class="kv-table">${rows.map(([k,v])=>`<tr><td>${k}</td><td>${typeof v==='number'?fmtTime(v):v}</td></tr>`).join('')}</table>`;
+  };
+
+  document.getElementById('drawerBody').innerHTML = `
+    <div class="kv-section">
+      <div class="kv-title">Request</div>
+      <table class="kv-table">
+        <tr><td>URL</td><td>${req.url||''}</td></tr>
+        <tr><td>Method</td><td>${req.method||''}</td></tr>
+        <tr><td>HTTP Version</td><td>${req.httpVersion||''}</td></tr>
+      </table>
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Response</div>
+      <table class="kv-table">
+        <tr><td>Status</td><td>${res.status||0} ${res.statusText||''}</td></tr>
+        <tr><td>Content Type</td><td>${res.content?.mimeType||'—'}</td></tr>
+        <tr><td>Body Size</td><td>${fmtSize(res.content?.size)}</td></tr>
+        <tr><td>Transfer Size</td><td>${fmtSize(getResponseSize(e))}</td></tr>
+      </table>
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Timings</div>
+      ${renderKV({
+        DNS: timing.dns, Connect: timing.connect, SSL: timing.ssl,
+        Send: timing.send, Wait: timing.wait, Receive: timing.receive, Total: e.time
+      })}
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Request Headers</div>
+      <table class="kv-table">${renderHeaders(req.headers)}</table>
+    </div>
+    <div class="kv-section">
+      <div class="kv-title">Response Headers</div>
+      <table class="kv-table">${renderHeaders(res.headers)}</table>
+    </div>
+    ${req.postData ? `<div class="kv-section"><div class="kv-title">Request Body</div><pre style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:0.7rem;font-size:0.72rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all">${req.postData.text||JSON.stringify(req.postData,null,2)}</pre></div>` : ''}
+  `;
+  document.getElementById('drawer').classList.add('open');
+  document.getElementById('drawerOverlay').classList.add('open');
+}
+
+document.getElementById('drawerClose').addEventListener('click', closeDrawer);
+document.getElementById('drawerOverlay').addEventListener('click', closeDrawer);
+function closeDrawer() {
+  document.getElementById('drawer').classList.remove('open');
+  document.getElementById('drawerOverlay').classList.remove('open');
+}
+
+// ─── AI CHAT ──────────────────────────────────────────────────────────────────
+const chatInput   = document.getElementById('chatInput');
+const sendBtn     = document.getElementById('sendBtn');
+const chatHistEl  = document.getElementById('chatHistory');
+
+// Auto-resize textarea
+chatInput.addEventListener('input', () => {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+});
+chatInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+sendBtn.addEventListener('click', sendMessage);
+
+document.querySelectorAll('.qp').forEach(qp => {
+  qp.addEventListener('click', () => {
+    chatInput.value = qp.dataset.q;
+    chatInput.dispatchEvent(new Event('input'));
+    sendMessage();
+  });
+});
+
+function buildHarContext() {
+  const total = entries.length;
+  const issues = getSecurityIssues();
+  const domainMap = {};
+  entries.forEach(e => { const d = getDomain(e.request?.url||''); domainMap[d]=(domainMap[d]||0)+1; });
+  const topDomains = Object.entries(domainMap).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const slowest = [...entries].sort((a,b)=>getTime(b)-getTime(a)).slice(0,5)
+    .map(e=>`${getDomain(e.request?.url||'')} (${fmtTime(getTime(e))})`).join(', ');
+  const failed = entries.filter(e=>!e.response?.status||e.response.status>=400).length;
+  const totalSize = entries.reduce((s,e)=>s+(getResponseSize(e)||0),0);
+  const times = entries.map(e=>getTime(e)).filter(t=>t>0).sort((a,b)=>a-b);
+  const p50 = times[Math.floor(times.length*0.5)]||0;
+  const p90 = times[Math.floor(times.length*0.9)]||0;
+
+  // Sample of first 30 entries for detail
+  const sample = entries.slice(0, 30).map(e => ({
+    url: e.request?.url?.substring(0,120),
+    method: e.request?.method,
+    status: e.response?.status,
+    type: getContentType(e),
+    size: fmtSize(getResponseSize(e)),
+    time: fmtTime(getTime(e)),
+  }));
+
+  return `You are a network security and web performance expert analyzing a HAR (HTTP Archive) file.
+
+HAR SUMMARY:
+- Total Requests: ${total}
+- Failed/Error Requests: ${failed}
+- Total Data Transferred: ${fmtSize(totalSize)}
+- Response Times: p50=${fmtTime(p50)}, p90=${fmtTime(p90)}
+- Unique Domains: ${Object.keys(domainMap).length}
+- Security Issues Detected: ${issues.length} (${issues.filter(i=>i.sev==='high').length} high, ${issues.filter(i=>i.sev==='medium').length} medium)
+
+TOP DOMAINS: ${topDomains.map(([d,n])=>`${d} (${n})`).join(', ')}
+
+SLOWEST REQUESTS: ${slowest}
+
+SECURITY ISSUES SUMMARY:
+${issues.slice(0,15).map(i=>`[${i.sev.toUpperCase()}] ${i.title} — ${i.url?.substring(0,80)}`).join('\n')||'None detected'}
+
+SAMPLE REQUESTS (first 30):
+${JSON.stringify(sample, null, 1)}
+
+Answer questions about this HAR data helpfully and concisely. Focus on actionable insights about security vulnerabilities, performance issues, and network behaviour. Format responses clearly with markdown when helpful.`;
+}
+
+async function sendMessage() {
+  const text = chatInput.value.trim();
+  if (!text) return;
+  const apiKey = localStorage.getItem('har-anthropic-key') || document.getElementById('apiKeyInput').value.trim();
+  if (!apiKey) { toast('Please enter and save your API key first'); return; }
+  if (!harData) { toast('Please load a HAR file first'); return; }
+
+  // Add user message
+  chatHistory.push({ role: 'user', content: text });
+  appendMsg('user', text);
+  chatInput.value = '';
+  chatInput.style.height = 'auto';
+  sendBtn.disabled = true;
+
+  // Typing indicator
+  const typingEl = document.createElement('div');
+  typingEl.className = 'msg';
+  typingEl.innerHTML = `<div class="msg-avatar ai">AI</div><div class="msg-content"><div class="typing-indicator"><span></span><span></span><span></span></div></div>`;
+  chatHistEl.appendChild(typingEl);
+  chatHistEl.scrollTop = chatHistEl.scrollHeight;
+
+  try {
+    const systemPrompt = buildHarContext();
+    const messages = chatHistory.slice(-12); // keep last 12 for context
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 1024,
+        system: systemPrompt,
+        messages,
+      })
+    });
+
+    typingEl.remove();
+
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.error?.message || `API error ${res.status}`);
+    }
+
+    const data = await res.json();
+    const reply = data.content?.[0]?.text || 'No response received.';
+    chatHistory.push({ role: 'assistant', content: reply });
+    appendMsg('ai', reply);
+  } catch(err) {
+    typingEl.remove();
+    appendMsg('ai', `**Error:** ${err.message}`);
+    if (err.message.includes('401')) toast('Invalid API key — check your key and try again');
+  }
+  sendBtn.disabled = false;
+}
+
+function appendMsg(role, text) {
+  const empty = document.getElementById('chatEmpty');
+  if (empty) empty.remove();
+
+  const el = document.createElement('div');
+  el.className = 'msg';
+  const avatar = role === 'ai'
+    ? '<div class="msg-avatar ai">AI</div>'
+    : '<div class="msg-avatar">YOU</div>';
+  el.innerHTML = `${avatar}<div class="msg-content ${role === 'user' ? 'user' : ''}">${renderMarkdown(text)}</div>`;
+  chatHistEl.appendChild(el);
+  chatHistEl.scrollTop = chatHistEl.scrollHeight;
+}
+
+// Simple markdown renderer
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+    .replace(/^#{1,3}\s+(.+)$/gm, '<strong>$1</strong>')
+    .replace(/^[-•]\s+(.+)$/gm, '• $1')
+    .replace(/\n\n/g, '</p><p>')
+    .replace(/\n/g, '<br>')
+    .replace(/^/, '<p>').replace(/$/, '</p>');
+}
+</script>
+</body>
+</html>
