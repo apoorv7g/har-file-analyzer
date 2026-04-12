@@ -651,6 +651,29 @@
     border: 1px solid var(--border);
     color: var(--text3);
   }
+
+  /* ─── SIMULATION ────────────────────────────────────────────── */
+  .sim-row {
+    cursor: pointer;
+    transform-origin: top left;
+  }
+  .sim-row:hover {
+    background: var(--bg3) !important;
+    border-color: var(--text) !important;
+    transform: translateX(4px);
+  }
+  .sim-row.active {
+    box-shadow: 0 0 0 2px var(--accent);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  .sim-row.completed {
+    border-color: var(--ok) !important;
+    opacity: 0.7;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 0 2px var(--accent); }
+    50% { box-shadow: 0 0 0 4px rgba(10,10,10,0.1); }
+  }
 </style>
 </head>
 <body>
@@ -662,6 +685,10 @@
       <span class="brand-name">HAR ANALYZER</span>
     </div>
     <div class="topbar-actions">
+      <button class="btn" id="simulateBtn" style="display:none" title="Simulate entire flow with AI">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"/><path d="M12 1v22M4.22 4.22l15.56 15.56M1 12h22M4.22 19.78l15.56-15.56"/></svg>
+        Simulate
+      </button>
       <button class="btn" id="loadNewBtn" style="display:none">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         Load New
@@ -679,6 +706,7 @@
     <div class="tab" data-panel="security">Security</div>
     <div class="tab" data-panel="waterfall">Waterfall</div>
     <div class="tab" data-panel="summary">Summary</div>
+    <div class="tab" data-panel="simulation">Simulation</div>
     <div class="tab" data-panel="ai">Ask AI</div>
   </nav>
 
@@ -775,15 +803,51 @@
       <div id="summaryContent"></div>
     </div>
 
+    <!-- SIMULATION PANEL -->
+    <div id="simulationPanel" class="panel">
+      <div style="display:flex;flex-direction:column;height:calc(100vh - 110px)">
+        <!-- Controls -->
+        <div style="padding:1rem;background:var(--bg2);border-bottom:1px solid var(--border);display:flex;gap:0.8rem;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-solid" id="simPlayBtn" style="min-width:80px">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Play
+          </button>
+          <input type="range" id="simSpeed" min="0.5" max="3" step="0.5" value="1" style="width:120px;cursor:pointer" title="Playback speed">
+          <span id="speedLabel" style="font-size:0.75rem;color:var(--text3);min-width:50px">1.0x</span>
+          
+          <div style="flex:1;min-width:200px">
+            <input type="range" id="simProgress" min="0" max="100" value="0" style="width:100%;cursor:pointer" title="Timeline">
+          </div>
+          <span id="simTimeLabel" style="font-size:0.75rem;color:var(--text3);min-width:60px">0 / 0</span>
+          <button class="btn" id="simResetBtn" title="Reset">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+            Reset
+          </button>
+        </div>
+        
+        <!-- Simulation Timeline -->
+        <div style="flex:1;overflow-y:auto;padding:1rem">
+          <div id="simTimeline"></div>
+        </div>
+        
+        <!-- Request/Response Details (when paused) -->
+        <div id="simDetails" style="display:none;padding:1rem;border-top:1px solid var(--border);background:var(--bg2);max-height:40%;overflow-y:auto">
+          <div id="simDetailsContent"></div>
+        </div>
+      </div>
+    </div>
+
     <!-- AI PANEL -->
     <div id="aiPanel" class="panel">
       <div class="ai-panel">
         <div class="ai-key-bar">
-          <label>API KEY</label>
-          <input type="password" id="apiKeyInput" placeholder="sk-ant-…  (stored locally in your browser)" />
-          <button class="btn btn-solid" id="saveKeyBtn">Save</button>
+          <label>GROQ API KEY</label>
+          <input type="password" id="apiKeyInput" placeholder="gsk_…  (stored locally in your browser)" />
+          <label style="margin-left:1rem;white-space:nowrap">LLM MODEL</label>
+          <input type="text" id="modelNameInput" placeholder="mixtral-8x7b-32768" value="mixtral-8x7b-32768" style="min-width:180px" />
+          <button class="btn btn-solid" id="saveKeyBtn">Save Config</button>
           <div class="ai-key-hint">
-            Your key is saved in <strong>localStorage</strong> — it persists across sessions and browser restarts on this device. It never leaves your browser.
+            Your Groq API key is saved in <strong>localStorage</strong> — it persists across sessions on this device. It never leaves your browser.
           </div>
         </div>
         <div class="quick-prompts" id="quickPrompts">
@@ -797,7 +861,7 @@
         <div class="chat-history" id="chatHistory">
           <div class="chat-empty" id="chatEmpty">
             <span class="stencil">ASK AI</span>
-            <span>Load a HAR file, set your API key, then ask anything about the traffic.</span>
+            <span>Load a HAR file, set your Groq API key, then ask anything about the traffic.</span>
           </div>
         </div>
         <div class="chat-input-row">
@@ -863,19 +927,23 @@ function toast(msg, duration = 2500) {
   }, duration);
 }
 
-// ─── API KEY ─────────────────────────────────────────────────────────────────
-// localStorage persists across sessions (survives browser restarts on same device)
-function loadApiKey() {
-  const key = localStorage.getItem('har-anthropic-key') || '';
+// ─── API KEY & MODEL ────────────────────────────────────────────────────────
+function loadApiConfig() {
+  const key = localStorage.getItem('har-groq-key') || '';
+  const model = localStorage.getItem('har-groq-model') || 'mixtral-8x7b-32768';
   document.getElementById('apiKeyInput').value = key;
+  document.getElementById('modelNameInput').value = model;
 }
 document.getElementById('saveKeyBtn').addEventListener('click', () => {
   const key = document.getElementById('apiKeyInput').value.trim();
-  if (!key) { toast('Enter an API key first'); return; }
-  localStorage.setItem('har-anthropic-key', key);
-  toast('API key saved locally ✓');
+  const model = document.getElementById('modelNameInput').value.trim();
+  if (!key) { toast('Enter a Groq API key first'); return; }
+  if (!model) { toast('Enter a model name first'); return; }
+  localStorage.setItem('har-groq-key', key);
+  localStorage.setItem('har-groq-model', model);
+  toast('Groq config saved locally ✓');
 });
-loadApiKey();
+loadApiConfig();
 
 // ─── FILE UPLOAD ─────────────────────────────────────────────────────────────
 const uploadZone = document.getElementById('uploadZone');
@@ -910,6 +978,7 @@ function initApp() {
   document.getElementById('uploadPanel').style.display = 'none';
   document.getElementById('tabsBar').style.display = 'flex';
   document.getElementById('loadNewBtn').style.display = 'flex';
+  document.getElementById('simulateBtn').style.display = 'flex';
   filteredEntries = [...entries];
   renderRequests();
   renderSecurity();
@@ -927,7 +996,7 @@ document.querySelectorAll('.tab').forEach(tab => {
   });
 });
 function showPanel(name) {
-  ['requests','security','waterfall','summary','ai'].forEach(p => {
+  ['requests','security','waterfall','summary','simulation','ai'].forEach(p => {
     document.getElementById(p + 'Panel').classList.remove('active');
   });
   document.getElementById(name + 'Panel').classList.add('active');
@@ -937,14 +1006,425 @@ document.getElementById('loadNewBtn').addEventListener('click', () => {
   document.getElementById('uploadPanel').style.display = 'flex';
   document.getElementById('tabsBar').style.display = 'none';
   document.getElementById('loadNewBtn').style.display = 'none';
-  ['requests','security','waterfall','summary','ai'].forEach(p => {
+  document.getElementById('simulateBtn').style.display = 'none';
+  ['requests','security','waterfall','summary','simulation','ai'].forEach(p => {
     document.getElementById(p + 'Panel').classList.remove('active');
   });
   harData = null; entries = []; filteredEntries = [];
   chatHistory = [];
-  document.getElementById('chatHistory').innerHTML = '<div class="chat-empty" id="chatEmpty"><span class="stencil">ASK AI</span><span>Load a HAR file, set your API key, then ask anything about the traffic.</span></div>';
+  document.getElementById('chatHistory').innerHTML = '<div class="chat-empty" id="chatEmpty"><span class="stencil">ASK AI</span><span>Load a HAR file, set your Groq API key, then ask anything about the traffic.</span></div>';
   fileInput.value = '';
 });
+
+// ─── SIMULATION ─────────────────────────────────────────────────────────────
+let isSimPlaying = false;
+let simCurrentIndex = 0;
+let simPlaybackRate = 1;
+let simAnimationId = null;
+let simStartTime = Date.now();
+
+document.getElementById('simulateBtn').addEventListener('click', () => {
+  if (!harData) { toast('Please load a HAR file first'); return; }
+  showPanel('simulation');
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelector('.tab[data-panel="simulation"]').classList.add('active');
+  initSimulation();
+});
+
+function initSimulation() {
+  simCurrentIndex = 0;
+  isSimPlaying = false;
+  simStartTime = Date.now();
+  
+  renderSimTimeline();
+  
+  // Update controls
+  document.getElementById('simPlayBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+  document.getElementById('simProgress').max = entries.length - 1;
+  document.getElementById('simProgress').value = 0;
+  updateSimTimeLabel();
+}
+
+document.getElementById('simPlayBtn').addEventListener('click', toggleSimPlayback);
+document.getElementById('simResetBtn').addEventListener('click', resetSimulation);
+document.getElementById('simSpeed').addEventListener('input', e => {
+  simPlaybackRate = parseFloat(e.target.value);
+  document.getElementById('speedLabel').textContent = simPlaybackRate.toFixed(1) + 'x';
+});
+document.getElementById('simProgress').addEventListener('input', e => {
+  simCurrentIndex = parseInt(e.target.value);
+  updateSimTimeLabel();
+  renderSimTimeline();
+  if (isSimPlaying) pauseSimulation();
+});
+
+function toggleSimPlayback() {
+  if (isSimPlaying) {
+    pauseSimulation();
+  } else {
+    playSimulation();
+  }
+}
+
+function playSimulation() {
+  if (simCurrentIndex >= entries.length) {
+    simCurrentIndex = 0;
+    renderSimTimeline();
+  }
+  
+  isSimPlaying = true;
+  document.getElementById('simPlayBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg> Pause';
+  simStartTime = Date.now() - (simCurrentIndex * 100 / simPlaybackRate);
+  
+  function animate() {
+    if (!isSimPlaying) return;
+    
+    const elapsed = (Date.now() - simStartTime) * simPlaybackRate;
+    simCurrentIndex = Math.min(Math.floor(elapsed / 100), entries.length - 1);
+    
+    document.getElementById('simProgress').value = simCurrentIndex;
+    updateSimTimeLabel();
+    renderSimTimeline();
+    
+    if (simCurrentIndex >= entries.length - 1) {
+      pauseSimulation();
+    } else {
+      simAnimationId = requestAnimationFrame(animate);
+    }
+  }
+  
+  simAnimationId = requestAnimationFrame(animate);
+}
+
+function pauseSimulation() {
+  isSimPlaying = false;
+  if (simAnimationId) cancelAnimationFrame(simAnimationId);
+  document.getElementById('simPlayBtn').innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"/></svg> Play';
+  
+  // Show details panel for current request
+  if (simCurrentIndex < entries.length) {
+    showSimDetails(simCurrentIndex);
+  }
+}
+
+function resetSimulation() {
+  pauseSimulation();
+  simCurrentIndex = 0;
+  document.getElementById('simProgress').value = 0;
+  updateSimTimeLabel();
+  renderSimTimeline();
+  document.getElementById('simDetails').style.display = 'none';
+}
+
+function updateSimTimeLabel() {
+  const currTime = (simCurrentIndex < entries.length ? getTime(entries[simCurrentIndex]) : 0) / 1000;
+  const totalTime = (entries.reduce((s,e) => s + getTime(e), 0)) / 1000;
+  document.getElementById('simTimeLabel').textContent = `${currTime.toFixed(2)}s / ${totalTime.toFixed(2)}s`;
+}
+
+function renderSimTimeline() {
+  const timeline = document.getElementById('simTimeline');
+  const maxTime = Math.max(...entries.map(e => getTime(e)), 1);
+  
+  timeline.innerHTML = entries.map((e, i) => {
+    const url = e.request?.url || '';
+    const method = e.request?.method || '';
+    const status = e.response?.status || 0;
+    const time = getTime(e);
+    const barW = (time / maxTime) * 100;
+    const isActive = i === simCurrentIndex;
+    const isCompleted = i < simCurrentIndex;
+    
+    const statusColor = status >= 200 && status < 300 ? 'var(--ok)' : 
+                       status >= 300 && status < 400 ? 'var(--info)' :
+                       status >= 400 && status < 500 ? 'var(--warn)' :
+                       status >= 500 ? 'var(--danger)' : 'var(--text3)';
+    
+    return `
+    <div class="sim-row ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}" onclick="pauseSimulation(); showSimDetails(${i})" style="
+      padding:0.8rem;
+      margin-bottom:0.6rem;
+      background:${isActive ? 'var(--bg3)' : 'var(--bg2)'};
+      border:1px solid ${isActive ? 'var(--accent)' : 'var(--border)'};
+      border-radius:6px;
+      cursor:pointer;
+      transition:all 0.3s;
+      opacity:${isActive ? 1 : isCompleted ? 0.7 : 0.5};
+    ">
+      <div style="display:flex;justify-content:space-between;margin-bottom:0.5rem;align-items:center">
+        <div style="display:flex;align-items:center;gap:0.5rem">
+          <span style="font-size:0.7rem;font-weight:700;background:${isActive?'var(--accent)':'var(--border2)'};color:${isActive?'var(--accent-inv)':'var(--text3)'};padding:0.2rem 0.4rem;border-radius:3px">#${i+1}</span>
+          <span style="font-size:0.8rem;color:var(--text);font-weight:600">${method}</span>
+          <span style="badge ${getStatusClass(status)}";font-size:0.7rem;padding:0.15rem 0.35rem;background:${statusColor};color:white;border-radius:3px">${status}</span>
+        </div>
+        <span style="font-size:0.75rem;color:var(--text3);font-weight:600">${fmtTime(time)}</span>
+      </div>
+      <div style="font-size:0.75rem;color:var(--text3);margin-bottom:0.5rem;word-break:break-all">${getDomain(url)}</div>
+      <div style="height:6px;background:var(--bg);border-radius:3px;overflow:hidden">
+        <div style="height:100%;width:${barW}%;background:${isActive?'var(--accent)':statusColor};transition:width 0.3s;opacity:${isCompleted?1:0.6}"></div>
+      </div>
+    </div>
+    `;
+  }).join('');
+}
+
+function showSimDetails(idx) {
+  const e = entries[idx];
+  if (!e) return;
+  
+  const req = e.request || {};
+  const res = e.response || {};
+  const timing = e.timings || {};
+  
+  const renderHeaders = (headers) => {
+    if (!headers || !headers.length) return '<div style="font-size:0.75rem;color:var(--text3)">None</div>';
+    return headers.map(h => `
+      <div style="display:flex;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border)">
+        <span style="font-weight:600;min-width:150px;color:var(--text3);font-size:0.75rem">${h.name}</span>
+        <span style="flex:1;font-size:0.75rem;color:var(--text2);word-break:break-all">${h.value}</span>
+      </div>
+    `).join('');
+  };
+  
+  const status = res.status || 0;
+  const statusColor = status >= 200 && status < 300 ? 'var(--ok)' : 
+                     status >= 300 && status < 400 ? 'var(--info)' :
+                     status >= 400 && status < 500 ? 'var(--warn)' :
+                     status >= 500 ? 'var(--danger)' : 'var(--text3)';
+  
+  document.getElementById('simDetailsContent').innerHTML = `
+    <div style="font-size:0.9rem;font-weight:700;margin-bottom:0.8rem;color:var(--text)">Request #${idx+1}</div>
+    
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem">
+      <div>
+        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.5rem;font-weight:600">METHOD</div>
+        <div style="font-size:0.85rem;color:var(--text2)">${req.method || '—'}</div>
+      </div>
+      <div>
+        <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.5rem;font-weight:600">STATUS</div>
+        <div style="font-size:0.85rem;color:${statusColor};font-weight:700">${status} ${res.statusText || ''}</div>
+      </div>
+    </div>
+    
+    <div style="margin-bottom:1rem;padding:0.8rem;background:var(--bg3);border-radius:4px">
+      <div style="font-size:0.7rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.4rem;font-weight:600">URL</div>
+      <div style="font-size:0.75rem;color:var(--text2);word-break:break-all;font-family:monospace">${req.url || '—'}</div>
+    </div>
+    
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:0.6rem;margin-bottom:1rem">
+      <div style="padding:0.6rem;background:var(--bg3);border-radius:4px">
+        <div style="font-size:0.7rem;color:var(--text3);margin-bottom:0.3rem">Size</div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text)">${fmtSize(getResponseSize(e))}</div>
+      </div>
+      <div style="padding:0.6rem;background:var(--bg3);border-radius:4px">
+        <div style="font-size:0.7rem;color:var(--text3);margin-bottom:0.3rem">Time</div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text)">${fmtTime(getTime(e))}</div>
+      </div>
+      <div style="padding:0.6rem;background:var(--bg3);border-radius:4px">
+        <div style="font-size:0.7rem;color:var(--text3);margin-bottom:0.3rem">Type</div>
+        <div style="font-size:0.9rem;font-weight:700;color:var(--text)">${getContentType(e)}</div>
+      </div>
+    </div>
+    
+    <div style="margin-bottom:0.8rem">
+      <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.4rem;font-weight:600">Request Headers (${req.headers?.length||0})</div>
+      ${renderHeaders(req.headers)}
+    </div>
+    
+    <div>
+      <div style="font-size:0.75rem;text-transform:uppercase;letter-spacing:0.05em;color:var(--text3);margin-bottom:0.4rem;font-weight:600">Response Headers (${res.headers?.length||0})</div>
+      ${renderHeaders(res.headers)}
+    </div>
+  `;
+  
+  document.getElementById('simDetails').style.display = 'block';
+}
+
+function performDeepAnalysis() {
+  const total = entries.length;
+  const failed = entries.filter(e => !e.response?.status || e.response.status >= 400).length;
+  const totalSize = entries.reduce((s,e) => s + (getResponseSize(e)||0), 0);
+  
+  // Status distribution
+  const statuses = { '2xx':0, '3xx':0, '4xx':0, '5xx':0, 'failed':0 };
+  entries.forEach(e => {
+    const s = e.response?.status || 0;
+    if (!s) statuses.failed++;
+    else if (s < 300) statuses['2xx']++;
+    else if (s < 400) statuses['3xx']++;
+    else if (s < 500) statuses['4xx']++;
+    else statuses['5xx']++;
+  });
+  
+  // Type distribution
+  const types = {};
+  entries.forEach(e => { const t = getContentType(e); types[t] = (types[t]||0)+1; });
+  
+  // Domain breakdown
+  const domains = {};
+  entries.forEach(e => {
+    const d = getDomain(e.request?.url||'');
+    domains[d] = (domains[d]||0)+1;
+  });
+  
+  // Performance stats
+  const times = entries.map(e=>getTime(e)).filter(t=>t>0).sort((a,b)=>a-b);
+  const slowest = [...entries].sort((a,b)=>getTime(b)-getTime(a)).slice(0,5);
+  
+  // Security issues
+  const issues = getSecurityIssues();
+  const issueBySev = { high:0, medium:0, low:0, info:0 };
+  issues.forEach(i => issueBySev[i.sev]++);
+  
+  return {
+    total, failed, totalSize, statuses, types, domains, times, slowest,
+    issues, issueBySev,
+    p50: times[Math.floor(times.length*0.5)] || 0,
+    p90: times[Math.floor(times.length*0.9)] || 0,
+    p99: times[Math.floor(times.length*0.99)] || 0,
+    avg: times.length > 0 ? times.reduce((a,b)=>a+b,0)/times.length : 0,
+  };
+}
+
+function buildAnalysisReport(data) {
+  const pct = (n, total) => total === 0 ? '0' : ((n/total)*100).toFixed(1);
+  
+  // Create bar chart HTML for status codes
+  const statusChart = `
+<div style="margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:6px">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Request Status Distribution</strong>
+${Object.entries(data.statuses).map(([s,n]) => {
+  const colors = {'2xx':'var(--ok)','3xx':'var(--info)','4xx':'var(--warn)','5xx':'var(--danger)','failed':'var(--danger)'};
+  const pctVal = pct(n, data.total);
+  return `<div style="display:flex;align-items:center;gap:0.8rem;margin:0.5rem 0">
+    <span style="min-width:60px;font-size:0.75rem;font-weight:600">${s}</span>
+    <div style="flex:1;height:20px;background:var(--bg3);border-radius:3px;overflow:hidden">
+      <div style="height:100%;width:${pctVal}%;background:${colors[s]};transition:width 0.3s"></div>
+    </div>
+    <span style="min-width:40px;text-align:right;font-size:0.75rem;color:var(--text3)">${n} (${pctVal}%)</span>
+  </div>`;
+}).join('')}
+</div>`;
+
+  // Create type distribution
+  const typeChart = `
+<div style="margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:6px">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Content Type Breakdown</strong>
+${Object.entries(data.types).sort((a,b)=>b[1]-a[1]).map(([t,n]) => {
+  const pctVal = pct(n, data.total);
+  return `<div style="display:flex;justify-content:space-between;padding:0.4rem 0;border-bottom:1px solid var(--border)">
+    <span style="font-size:0.8rem;color:var(--text2)">${t}</span>
+    <span style="font-size:0.8rem;color:var(--text3)">${n} requests (${pctVal}%)</span>
+  </div>`;
+}).join('')}
+</div>`;
+
+  // Performance stats
+  const perfStats = `
+<div style="margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:6px">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Performance Metrics</strong>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem">
+  <div style="padding:0.8rem;background:var(--bg);border-radius:4px">
+    <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">p50 (Median)</div>
+    <div style="font-size:1.3rem;font-weight:700;color:var(--ok)">${fmtTime(data.p50)}</div>
+  </div>
+  <div style="padding:0.8rem;background:var(--bg);border-radius:4px">
+    <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">p90</div>
+    <div style="font-size:1.3rem;font-weight:700;color:${data.p90>2000?'var(--warn)':'var(--ok)'}">${fmtTime(data.p90)}</div>
+  </div>
+  <div style="padding:0.8rem;background:var(--bg);border-radius:4px">
+    <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">p99</div>
+    <div style="font-size:1.3rem;font-weight:700;color:${data.p99>3000?'var(--danger)':'var(--text)'}">${fmtTime(data.p99)}</div>
+  </div>
+  <div style="padding:0.8rem;background:var(--bg);border-radius:4px">
+    <div style="font-size:0.7rem;color:var(--text3);text-transform:uppercase;letter-spacing:0.05em">Average</div>
+    <div style="font-size:1.3rem;font-weight:700;color:var(--text)">${fmtTime(data.avg)}</div>
+  </div>
+</div>
+</div>`;
+
+  // Top slowest requests
+  const slowestTable = `
+<div style="margin:1rem 0">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Top 5 Slowest Requests</strong>
+<table style="width:100%;border-collapse:collapse;font-size:0.8rem;border:1px solid var(--border)">
+<thead><tr style="background:var(--bg2)">
+  <th style="padding:0.5rem;text-align:left;border-bottom:2px solid var(--border)">URL</th>
+  <th style="padding:0.5rem;text-align:right;border-bottom:2px solid var(--border)">Time</th>
+  <th style="padding:0.5rem;text-align:right;border-bottom:2px solid var(--border)">Size</th>
+</tr></thead>
+<tbody>
+${data.slowest.map(e => `<tr style="border-bottom:1px solid var(--border)">
+  <td style="padding:0.5rem;color:var(--text3);font-size:0.75rem;max-width:200px;overflow:hidden;text-overflow:ellipsis">${getDomain(e.request?.url||'')}</td>
+  <td style="padding:0.5rem;text-align:right;color:${getTime(e)>1000?'var(--warn)':'var(--text2)'}">${fmtTime(getTime(e))}</td>
+  <td style="padding:0.5rem;text-align:right;color:var(--text3)">${fmtSize(getResponseSize(e))}</td>
+</tr>`).join('')}
+</tbody>
+</table>
+</div>`;
+
+  // Domain analysis  
+  const topDomains = Object.entries(data.domains).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  const domainList = `
+<div style="margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:6px">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Top Domains</strong>
+${topDomains.map(([d,n]) => `<div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border)">
+  <span style="font-size:0.8rem;color:var(--text)">${d}</span>
+  <span style="font-size:0.8rem;color:var(--text3)">${n} requests</span>
+</div>`).join('')}
+</div>`;
+
+  // Security summary
+  const securitySummary = `
+<div style="margin:1rem 0;padding:1rem;background:var(--bg2);border-radius:6px">
+<strong style="display:block;margin-bottom:0.8rem;font-size:0.9rem">Security Issues Found</strong>
+${data.issueBySev.high > 0 || data.issueBySev.medium > 0 ? `
+<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.5rem">
+  <div style="padding:0.6rem;background:${data.issueBySev.high>0?'rgba(192,57,43,0.1)':'var(--bg3)'};border-radius:3px;border-left:3px solid var(--danger)">
+    <div style="font-size:0.7rem;color:var(--text3)">HIGH</div>
+    <div style="font-size:1.4rem;font-weight:700;color:var(--danger)">${data.issueBySev.high}</div>
+  </div>
+  <div style="padding:0.6rem;background:${data.issueBySev.medium>0?'rgba(176,125,0,0.1)':'var(--bg3)'};border-radius:3px;border-left:3px solid var(--warn)">
+    <div style="font-size:0.7rem;color:var(--text3)">MEDIUM</div>
+    <div style="font-size:1.4rem;font-weight:700;color:var(--warn)">${data.issueBySev.medium}</div>
+  </div>
+  <div style="padding:0.6rem;background:${data.issueBySev.low>0?'rgba(26,122,58,0.1)':'var(--bg3)'};border-radius:3px;border-left:3px solid var(--ok)">
+    <div style="font-size:0.7rem;color:var(--text3)">LOW</div>
+    <div style="font-size:1.4rem;font-weight:700;color:var(--ok)">${data.issueBySev.low}</div>
+  </div>
+  <div style="padding:0.6rem;background:var(--bg3);border-radius:3px;border-left:3px solid var(--text3)">
+    <div style="font-size:0.7rem;color:var(--text3)">TOTAL</div>
+    <div style="font-size:1.4rem;font-weight:700;color:var(--text3)">${data.issues.length}</div>
+  </div>
+</div>
+` : `<div style="padding:0.8rem;background:rgba(61,187,106,0.1);border-left:3px solid var(--ok);color:var(--ok);font-size:0.85rem">✓ No security issues detected</div>`}
+</div>`;
+
+  // Executive summary
+  const summary = `
+## Analysis Report
+
+### Overview
+- **Total Requests:** ${data.total}
+- **Failed/Errors:** ${data.failed} (${pct(data.failed, data.total)}%)
+- **Total Data:** ${fmtSize(data.totalSize)}
+- **Unique Domains:** ${Object.keys(data.domains).length}
+
+${statusChart}
+
+${perfStats}
+
+${typeChart}
+
+${slowestTable}
+
+${domainList}
+
+${securitySummary}
+`;
+
+  return summary;
+}
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 function fmtSize(bytes) {
@@ -1463,8 +1943,9 @@ Answer questions about this HAR data helpfully and concisely. Focus on actionabl
 async function sendMessage() {
   const text = chatInput.value.trim();
   if (!text) return;
-  const apiKey = localStorage.getItem('har-anthropic-key') || document.getElementById('apiKeyInput').value.trim();
-  if (!apiKey) { toast('Please enter and save your API key first'); return; }
+  const apiKey = localStorage.getItem('har-groq-key') || document.getElementById('apiKeyInput').value.trim();
+  const model = localStorage.getItem('har-groq-model') || document.getElementById('modelNameInput').value.trim() || 'mixtral-8x7b-32768';
+  if (!apiKey) { toast('Please enter and save your Groq API key first'); return; }
   if (!harData) { toast('Please load a HAR file first'); return; }
 
   // Add user message
@@ -1485,19 +1966,20 @@ async function sendMessage() {
     const systemPrompt = buildHarContext();
     const messages = chatHistory.slice(-12); // keep last 12 for context
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
+        'Authorization': `Bearer ${apiKey}`,
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: model,
         max_tokens: 1024,
         system: systemPrompt,
-        messages,
+        messages: messages.map(m => ({
+          role: m.role,
+          content: m.content
+        })),
       })
     });
 
@@ -1509,13 +1991,13 @@ async function sendMessage() {
     }
 
     const data = await res.json();
-    const reply = data.content?.[0]?.text || 'No response received.';
+    const reply = data.choices?.[0]?.message?.content || 'No response received.';
     chatHistory.push({ role: 'assistant', content: reply });
     appendMsg('ai', reply);
   } catch(err) {
     typingEl.remove();
     appendMsg('ai', `**Error:** ${err.message}`);
-    if (err.message.includes('401')) toast('Invalid API key — check your key and try again');
+    if (err.message.includes('401') || err.message.includes('Unauthorized')) toast('Invalid Groq API key — check your key and try again');
   }
   sendBtn.disabled = false;
 }
@@ -1534,19 +2016,88 @@ function appendMsg(role, text) {
   chatHistEl.scrollTop = chatHistEl.scrollHeight;
 }
 
-// Simple markdown renderer
+// Advanced markdown renderer with table and HTML support
 function renderMarkdown(text) {
-  return text
-    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    .replace(/`([^`]+)`/g, '<code>$1</code>')
-    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    .replace(/^#{1,3}\s+(.+)$/gm, '<strong>$1</strong>')
-    .replace(/^[-•]\s+(.+)$/gm, '• $1')
-    .replace(/\n\n/g, '</p><p>')
-    .replace(/\n/g, '<br>')
-    .replace(/^/, '<p>').replace(/$/, '</p>');
+  // If text contains inline HTML style from buildAnalysisReport, preserve it
+  if (text.includes('style="') && text.includes('<div') && text.includes('var(--')) {
+    return text; // Already has inline styles, render as-is
+  }
+  
+  // Split by double newlines for paragraphs/blocks
+  let blocks = text.split(/\n(?:\n|\r\n)/);
+  
+  return blocks.map(block => {
+    block = block.trim();
+    if (!block) return '';
+    
+    // Handle tables
+    if (block.includes('|')) {
+      const lines = block.split('\n');
+      const isTable = lines.length >= 3 && lines.every(l => l.includes('|'));
+      if (isTable) {
+        let html = '<table style="width:100%;border-collapse:collapse;margin:0.8rem 0;font-size:0.8rem;border:1px solid var(--border)">';
+        lines.forEach((line, idx) => {
+          // Skip separator line (---|---|)
+          if (line.match(/^\|?\s*-+\s*\|/)) return;
+          
+          const cells = line.split('|').filter(c => c.trim()).map(c => c.trim());
+          const tag = idx === 0 ? 'th' : 'td';
+          const style = idx === 0 ? 'background:var(--bg2);font-weight:600;border-bottom:2px solid var(--border)' : 'border-bottom:1px solid var(--border)';
+          html += `<tr>${cells.map(c => `<${tag} style="padding:0.5rem;text-align:left;${style}">${c}</${tag}>`).join('')}</tr>`;
+        });
+        html += '</table>';
+        return html;
+      }
+    }
+    
+    // Handle headers (###, ##, #)
+    let level = 0;
+    if (block.match(/^###\s+/)) { level = 3; block = block.replace(/^###\s+/, ''); }
+    else if (block.match(/^##\s+/)) { level = 2; block = block.replace(/^##\s+/, ''); }
+    else if (block.match(/^#\s+/)) { level = 1; block = block.replace(/^#\s+/, ''); }
+    
+    if (level) {
+      const sizes = { 1: '1.2rem', 2: '1rem', 3: '0.9rem' };
+      return `<div style="font-size:${sizes[level]};font-weight:700;margin:0.8rem 0 0.4rem;color:var(--text)">${escapeHtml(block)}</div>`;
+    }
+    
+    // Handle code blocks
+    if (block.match(/^```/)) {
+      const code = block.replace(/^```[\w]*\n?/, '').replace(/```$/, '');
+      return `<pre style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:0.7rem;overflow-x:auto;font-size:0.73rem;margin:0.5rem 0"><code>${escapeHtml(code)}</code></pre>`;
+    }
+    
+    // Handle lists
+    if (block.match(/^[-•*/]\s+/)) {
+      const listItems = block.split('\n').filter(l => l.trim());
+      const html = '<ul style="margin:0.5rem 0;padding-left:1.5rem">' +
+        listItems.map(item => `<li style="margin:0.3rem 0;color:var(--text2)">${escapeHtml(item.replace(/^[-•*/]\s+/, ''))}</li>`).join('') +
+        '</ul>';
+      return html;
+    }
+    
+    // Handle hr
+    if (block.match(/^-{3,}$/) || block.match(/^\*{3,}$/)) {
+      return '<hr style="border:none;border-top:1px solid var(--border);margin:1rem 0">';
+    }
+    
+    // Regular paragraph with inline formatting
+    block = block
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/```[\w]*\n?([\s\S]*?)```/g, '<pre style="background:var(--bg3);border:1px solid var(--border);border-radius:4px;padding:0.7rem;overflow-x:auto;font-size:0.72rem"><code>$1</code></pre>')
+      .replace(/`([^`]+)`/g, '<code style="background:var(--bg3);padding:0.15rem 0.3rem;border-radius:2px;font-size:0.75rem">$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+      .replace(/__([\s\S]+?)__/g, '<strong>$1</strong>')
+      .replace(/_([\s\S]+?)_/g, '<em>$1</em>');
+    
+    return `<div style="margin:0.5rem 0;line-height:1.6;color:var(--text2)">${block}</div>`;
+  }).join('');
+}
+
+function escapeHtml(text) {
+  const map = {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'};
+  return text.replace(/[&<>"']/g, m => map[m]);
 }
 </script>
 </body>
